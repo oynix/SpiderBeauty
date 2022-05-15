@@ -1,0 +1,4 @@
+data/**
+!data/**/*.txt
+.DS_Store
+**/.DS_Store
