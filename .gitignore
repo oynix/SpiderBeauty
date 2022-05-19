@@ -8,3 +8,5 @@
 # html目录下也只保留url文件
 */html/**
 !*/html/*.txt
+
+**/*.html
