@@ -2,10 +2,14 @@
 
 thread_number=16
 
+if [[ ! -z $3 ]]; then
+	thread_number=$3
+fi
+
 article_urls_file="../html/articles.txt"
 article_urls_finished_file="../html/.article_finished.txt"
-article_urls_order_file="../html/article_ordered.txt"
-article_urls_temp_file="../html/article_temp.txt"
+article_urls_order_file="../html/.article_ordered.txt"
+article_urls_temp_file="../html/.article_temp.txt"
 parent="../data/"
 
 p=`pwd`
@@ -16,15 +20,9 @@ if [[ $p != scripts ]]; then
 	exit
 fi
 
-#if [[ -f $article_urls_order_file ]]; then
-#	rm $article_urls_order_file
-#fi
-if [[ -f $article_urls_temp_file ]]; then
-	rm $article_urls_temp_file
-fi
 sh uniq_articles.sh
 
-cat $article_urls_file >> $article_urls_temp_file
+cat $article_urls_file > $article_urls_temp_file
 if [[ -f $article_urls_finished_file ]]; then
 	cat $article_urls_finished_file >> $article_urls_temp_file
 fi
@@ -38,16 +36,14 @@ temp_pipe=$$.fifo
 mkfifo $temp_pipe
 exec 9<>$temp_pipe
 rm -f $temp_pipe
-for (( i = 0; i < thread_number; i++ )); do
-	echo >&9
-done
+for (( i = 0; i < thread_number; i++ )); do echo >&9; done
 
 counter=0
 threshold=1
 ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36'
 h1='accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9'
 h2='Accept-Language: en-US'
-xx='socks5://127.0.0.1:7890'
+xx='http://127.0.0.1:7890'
 
 index=0
 index_start=$1
@@ -56,11 +52,6 @@ IFS=$'\n'
 
 for article in `cat $article_urls_order_file`;
 do
-	#counter=$(( counter + 1 ))
-	#if (( counter > threshold )); then
-	#	echo "over threshold, auto end"
-	#	break
-	#fi
 	index=$(( index + 1 ))
 	if (( index_end != -1 && index > index_end )); then
 		break
@@ -79,12 +70,15 @@ do
 		as=`date "+%s"`
 		article_dir=${article%\"*}
 		article_dir=${article_dir:0:40}
+		if [[ -z $article_dir ]]; then
+			article_dir=`md5 -q -s $article`
+			echo "$article dir is null, use md5, dir=$article_dir"
+		fi
 		article_url=${article/*\"}
 		pid=${article_url#*post/}
 		pid=${pid%/view*}
 
 		dir="${parent}${article_dir}_${pid}"
-		#echo "pid=$pid $dir"
 		if [[ ! -d $dir ]]; then
 			mkdir -p $dir
 		fi
@@ -94,7 +88,6 @@ do
 			if [[ ! -s $img_urls_file ]]; then
 				rm $img_urls_file
 			else
-				#echo "$img_urls_file already exist"
 				echo >&9
 				exit
 			fi
@@ -102,11 +95,8 @@ do
 
 		article_file="${dir}/article.html"
 		if [[ ! -f $article_file ]]; then
-			# echo "begin download:$article_url"
-			#set -x
 			curl -s -H "$h1" -H "$h2" -A "$ua" -x "$xx" $article_url -o $article_file --connect-time 10
 			ret=$?
-			#set +x
 			if [[ $ret != 0 ]]; then
 				echo "\033[31mRequest Error: ret=$ret, $article_url \033[0m"
 				if [[ -f $article_url ]]; then
@@ -128,12 +118,16 @@ do
 				echo >&9
 				exit
 			fi
-			article_cut=`cat $article_file`
-			article_cut=${article_cut%\"container\"*}
-		    article_cut=${article_cut#*\"masonry\"}
-		    #echo -n $article_cut | tr -d "\n" > $article_cut_file
-		    echo $article_cut > $article_cut_file
-		    sed -i '' -e 's/<div class="masonry-item/\n<div class="masonry-item/g' $article_cut_file
+			temp1="${dir}/.temp1"
+			temp2="${dir}/.temp2"
+			sed -n -e "s/\"masonry\">/&\n/1;w $temp1" $article_file
+			sed -n -e "1,/\"masonry\">/d;w $temp2" $temp1
+			sed -n -e "s/btn-default d-inline-block/\n&/1;w $temp1" $temp2
+			sed -n -e "/btn-default d-inline-block/,\$d;w $temp2" $temp1
+			sed -n -e "s/masonry-item/\n&/g;w $temp1" $temp2
+			sed -n -e "/masonry-item/!d;w $article_cut_file" $temp1
+			rm $temp1
+			rm $temp2
 		fi
 
 		fcts=`date "+%s"`
@@ -141,10 +135,13 @@ do
 		
 		touch $img_urls_file
 		IFS=$'\n'
+		out_lock='..'
 		for row in `cat $article_cut_file`; 
 		do
-			# echo ROW:$row
-			if [[ $row != '<div class="masonry-item'* ]]; then
+			if [[ ! -f lock_fu ]]; then
+				continue
+			fi
+			if [[ $row != 'masonry-item'* ]]; then
 				continue
 			fi
 			img_url=${row#*src=\"}
