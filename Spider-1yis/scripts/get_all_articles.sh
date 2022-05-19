@@ -2,6 +2,10 @@
 
 thread_number=24
 
+if [[ ! -z $3 ]]; then
+	thread_number=$3
+fi
+
 HOST=https://www.1y.is/page/
 html_dir="../html"
 article_urls_file="../html/articles.txt"
@@ -29,9 +33,7 @@ mkfifo $temp_pipe
 exec 9<>$temp_pipe
 rm $temp_pipe
 
-for (( i = 0; i < thread_number; i++ )); do
-	echo
-done >&9
+for (( i = 0; i < thread_number; i++ )); do echo >&9; done
 
 ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36'
 h1='accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9'

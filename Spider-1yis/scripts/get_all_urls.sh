@@ -2,6 +2,10 @@
 
 thread_number=48
 
+if [[ ! -z $3 ]]; then
+	thread_number=$3
+fi
+
 article_urls_file="../html/articles.txt"
 article_urls_finished_file="../html/.article_finished.txt"
 article_urls_order_file="../html/.article_ordered.txt"
@@ -32,29 +36,22 @@ temp_pipe=$$.fifo
 mkfifo $temp_pipe
 exec 9<>$temp_pipe
 rm -f $temp_pipe
-for (( i = 0; i < thread_number; i++ )); do
-	echo >&9
-done
+for (( i = 0; i < thread_number; i++ )); do echo >&9; done
 
 counter=0
 threshold=1
 ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36'
 h1='accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9'
 h2='Accept-Language: en-US'
-xx='socks5://127.0.0.1:7890'
+xx='http://127.0.0.1:7890'
 
 index=0
 index_start=$1
 index_end=$2
-IFS=$'\n'
 
+IFS=$'\n'
 for article in `cat $article_urls_order_file`;
 do
-	#counter=$(( counter + 1 ))
-	#if (( counter > threshold )); then
-	#	echo "over threshold, auto end"
-	#	break
-	#fi
 	index=$(( index + 1 ))
 	if (( index_end != -1 && index > index_end )); then
 		break
@@ -80,7 +77,6 @@ do
 		fi
 
 		dir="${parent}${article_dir}"
-		#echo "pid=$pid $dir"
 		if [[ ! -d $dir ]]; then
 			mkdir -p $dir
 		fi
@@ -90,7 +86,6 @@ do
 			if [[ ! -s $img_urls_file ]]; then
 				rm $img_urls_file
 			else
-				#echo "$img_urls_file already exist"
 				echo >&9
 				exit
 			fi
@@ -146,13 +141,13 @@ do
 				echo "DOWNLOAD: $item_article_file"
 				curl -s -L -H "$h1" -H "$h2" -A "$ua" -x "$xx" "${item_article_url}" -o $item_article_file --connect-time 10
 				iret=$?
-				#set +x
 				if [[ $iret != 0 ]]; then
 					echo "\033[31mRequest Item Error: ret=$iret, $item_article_file \033[0m"
 					if [[ -f $item_article_file ]]; then
 						rm "$item_article_file"
 					fi
-					continue
+					echo >&9
+					exit
 				fi
 			fi
 
@@ -173,7 +168,6 @@ do
 			IFS=$'\n'
 			for row in `cat $item_article_cut_file`; 
 			do
-				# echo ROW:$row
 				if [[ $row != '<img '* ]]; then
 					continue
 				fi
