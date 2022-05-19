@@ -1,6 +1,6 @@
 # data目录下只保留url文件
-*/data/*
-!*/data/*.txt
+*/data/*/*
+!*/data/*/*.txt
 
 .DS_Store
 **/.DS_Store
