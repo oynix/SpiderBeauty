@@ -1,12 +1,14 @@
 # data目录下只保留url文件
-*/data/**
+*/data/*
 !*/data/*.txt
 
 .DS_Store
 **/.DS_Store
 
 # html目录下也只保留url文件
-*/html/**
+*/html/*
 !*/html/*.txt
 
 **/*.html
+
+*.zip
