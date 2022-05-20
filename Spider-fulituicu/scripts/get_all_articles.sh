@@ -2,13 +2,14 @@
 
 thread_number=20
 
+if [[ ! -z $3 ]]; then
+	thread_number=$3
+fi
+
 HOST=https://fulitu.icu/index.php/page/
 html_dir="../html"
 article_urls_file="../html/articles.txt"
 
-if [[ -f $article_urls_file ]]; then
-	rm $article_urls_file
-fi
 if [[ ! -d $html_dir ]]; then
 	mkdir -p $html_dir
 fi
@@ -104,6 +105,8 @@ do
 done
 
 wait
+
+touch $article_urls_file
 
 rm lock_fa
 e=`date "+%s"`

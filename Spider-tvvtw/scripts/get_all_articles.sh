@@ -1,6 +1,10 @@
 #!/bin/bash
 
-thread_number=1
+thread_number=32
+
+if [[ ! -z $3 ]]; then
+	thread_number=$3
+fi
 
 HOST=https://mm.tvv.tw/page/
 html_dir="../html"
@@ -9,13 +13,10 @@ article_urls_file="../html/articles.txt"
 if [[ ! -d $html_dir ]]; then
 	mkdir -p $html_dir
 fi
-if [[ -f $article_urls_file ]]; then
-	rm $article_urls_file
-fi
 touch $article_urls_file
 
-# echo -e "\033[32m hell0 \033[0m"
-# 31 32 33 红绿黄
+sh uniq_articles.sh
+
 p=`pwd`
 p=${p##*\/}
 if [[ $p != scripts ]]; then
@@ -31,9 +32,7 @@ mkfifo $temp_pipe
 exec 9<>$temp_pipe
 rm $temp_pipe
 
-for (( i = 0; i < thread_number; i++ )); do
-	echo
-done >&9
+for (( i = 0; i < thread_number; i++ )); do echo >&9; done
 
 last_page=581
 ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36'
@@ -56,12 +55,6 @@ do
 		break
 	fi
 	{
-		#if [[ $page_index == 1 ]]; then
-		#	page_url=$HOST
-		#else
-		#    page_url="${HOST}page/${page_index}/"
-		#fi
-
 		page_url="${HOST}${page_index}/"
 
 		as=`date "+%s"`
@@ -144,6 +137,8 @@ do
 done
 
 wait
+
+sh uniq_articles.sh
 
 rm lock_fa
 e=`date "+%s"`

@@ -1,24 +1,24 @@
 #!/bin/bash
 
-thread_number=20
+thread_number=32
+
+if [[ ! -z $3 ]]; then
+	thread_number=$3
+fi
 
 HOST=https://everia.club/
 html_dir="../html"
 article_urls_file="../html/articles.txt"
 
-if [[ -f $article_urls_file ]]; then
-	rm $article_urls_file
-fi
-touch $article_urls_file
-
 if [[ ! -d $html_dir ]]; then
 	mkdir -p $html_dir
 fi
+touch $article_urls_file
 
 p=`pwd`
 p=${p##*\/}
 if [[ $p != scripts ]]; then
-	echo "change directory to scripts first"
+	echo "\033[33mchange directory to scripts first \033[0m"
 	exit
 fi
 
@@ -30,17 +30,29 @@ mkfifo $temp_pipe
 exec 9<>$temp_pipe
 rm $temp_pipe
 
-for (( i = 0; i < thread_number; i++ )); do
-	echo
-done >&9
+for (( i = 0; i < thread_number; i++ )); do echo >&9; done
+
+ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36'
+h1='accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9'
+h2='Accept-Language: en-US'
+xx='socks5://127.0.0.1:7890'
 
 last_page=485
+page_start=$1
+page_end=$2
 
-for (( page_index = 1; page_index <= last_page; page_index++ ));
+if (( page_end == -1 )); then
+	page_end=$last_page
+fi
+
+for (( page_index = page_start; page_index <= page_end; page_index++ ));
 do
+	if (( page_index == 0 )); then 
+		break 
+	fi
 	read -u9
 	if [[ ! -f lock_fa ]]; then
-		echo "$page_url force end, lock file not found"
+		echo "\033[31m$page_index force end, lock file not found \033[0m"
 		echo >&9
 		break
 	fi
@@ -55,52 +67,57 @@ do
 		html_file="${html_dir}/page_${page_index}.html"
 		html_cut_file="${html_dir}/page_${page_index}_cut.html"
 		if [[ ! -f $html_file ]]; then
-			curl -s $page_url -o $html_file
+			sleep 1
+			curl -s -x "$xx" -A "$ua" -H "$h1" -H "$h2" $page_url -o "$html_file" --connect-timeout 10
+			ret=$?
+			if [[ $ret != 0 ]]; then
+				echo "\033[31mRequest Error: ret=$ret file=$html_file, url=$page_url \033[0m"
+				if [[ -f $html_file ]]; then
+					rm "$html_file"
+				fi
+				echo >&9
+				exit
+			fi
 		fi
 
-        if [[ ! -f $html_cut_file ]]; then
-		    page=`cat $html_file`
-		    page=${page#*<main}
-		    page=${page%</main>*}
-		    page=${page%%<ul*}
-		    page="<main${page}</main>"
-		    echo $page > $html_cut_file
-		    sed -i '' -e "s/<article/\\n<article/g" $html_cut_file
+		tsf=`date "+%s"`
+		tsfd=$(( tsf - as ))
+
+        if [[ ! -s $html_cut_file ]]; then
+        	temp1="${html_dir}/.temp1_${page_index}"
+        	temp2="${html_dir}/.temp2_${page_index}"
+        	sed -n -e "s/posts-wrapper/&\n/g;w $temp1" $html_file
+        	sed -n -e "1,/posts-wrapper/d;w $temp2" $temp1
+        	cat $temp2 | tr -d '\n' > $temp1
+        	sed -n -e "s/page-numbers/\n&/1;w $temp2" $temp1
+        	sed -n -e "/page-numbers/,\$d;w $temp1" $temp2
+        	sed -n -e "s/<article/\n&/g;w $temp2" $temp1
+        	sed -n -e "/<article/!d;w $html_cut_file" $temp2
+        	rm $temp1
+        	rm $temp2
 		fi
+
+		tsfc=`date "+%s"`
+		tsfcd=$(( tsfc - tsf ))
 
 		IFS=$'\n'
 		for line in `cat $html_cut_file`
 		do
-			if [[ $line != \<article* ]]; then
+			if [[ $line != '<article'* ]]; then
 				continue
 			fi
-			# <article id="post-100591" class="post-100591 post type-post status-publish format-standard has-post-thumbnail hentry category-aidol category-japan tag-bocchi tag-young-champion- tag-yuuna-ikeda- layout-grid "><div class="article-content-col"><div class="content"><div class="nv-post-thumbnail-wrap"><a href="https://everia.club/2022/05/11/yuuna-ikeda-%e6%b1%a0%e7%94%b0%e3%82%86%e3%81%86%e3%81%aa-bessatsu-young-champion-2022-no-06-%e5%88%a5%e5%86%8a%e3%83%a4%e3%83%b3%e3%82%b0%e3%83%81%e3%83%a3%e3%83%b3%e3%83%94%e3%82%aa%e3%83%b3-2022/" rel="bookmark" title="Yuuna Ikeda 池田ゆうな, Bessatsu Young Champion 2022 No.06 (別冊ヤングチャンピオン 2022年6号)"><img fifu-featured="1" width="930" height="620" src="https://rakuda.my.id/wp-content/uploads/2022/05/0YUUNAYC06.jpg" class=" wp-post-image" alt="" title="" title="" loading="lazy" /></a></div><h2 class="blog-entry-title entry-title"><a href="https://everia.club/2022/05/11/yuuna-ikeda-%e6%b1%a0%e7%94%b0%e3%82%86%e3%81%86%e3%81%aa-bessatsu-young-champion-2022-no-06-%e5%88%a5%e5%86%8a%e3%83%a4%e3%83%b3%e3%82%b0%e3%83%81%e3%83%a3%e3%83%b3%e3%83%94%e3%82%aa%e3%83%b3-2022/" rel="bookmark">Yuuna Ikeda 池田ゆうな, Bessatsu Young Champion 2022 No.06 (別冊ヤングチャンピオン 2022年6号)</a></h2></div></div></article>
 			url=${line#*href=\"}
 			url=${url%%\"*}
-
-			title=${line//title=\"\"/}
-			title=${title#*title=\"}
-			title=${title%%\"*}
-			# & " ? < > # { } % ~ / \
-			title=${title//\//-}
-			title=${title//\\/-}
-			title=${title//~/-}
-			title=${title//#/-}
-			title=${title//&/-}
-			title=${title//</-}
-			title=${title//>/-}
-			title=${title//\?/-}
-			title=${title//\"/-}
-			title=${title//\{/-}
-			title=${title//\}/-}
-			title=${title//\%/-}
-			title=${title// /}
-
-			echo "$title\"$url" >> $article_urls_file
+			
+			title=${line#*bookmark\">}
+			title=${title%%<\/a>*}
+			title=`echo $title | perl -CS -pe 's/[^\x{4e00}-\x{9fa5}\x{0030}-\x{0039}\x{0041}-\x{005a}\x{0061}-\x{007a}]//g'`
+			echo "${title}\"$url" >> $article_urls_file
 		done
 		ae=`date "+%s"`
 		ad=$(( ae - as ))
-		echo "$page_url finish, elapsed: $ad s"
+		tssd=$(( ae - tsfc ))
+		echo "\033[32m$page_url finish, elapsed: ${tsfd}s, ${tsfcd}s, ${tssd}s, ${ad}s\033[0m"
 
 		echo >&9
 	} &
@@ -108,7 +125,9 @@ done
 
 wait
 
+sh uniq_articles.sh
+
 rm lock_fa
 e=`date "+%s"`
 d=$(( e - s ))
-echo "get all articles finish, elaspsed: $d s"
+echo "\033[32mget all articles finish, elaspsed: $d s \033[0m"

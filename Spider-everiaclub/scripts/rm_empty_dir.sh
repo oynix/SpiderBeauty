@@ -9,7 +9,7 @@ do
 	f="${dir}/img_urls.txt"
 	if [[ ! -f $f ]]; then
 		echo "NO-URL-FILE: $dir"
-		#rm *
+		#rm ${dir}/*
 	fi
 
 	if [[ ! "$(ls -A $dir)" ]]; then

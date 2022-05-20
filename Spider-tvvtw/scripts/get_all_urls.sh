@@ -2,15 +2,18 @@
 
 thread_number=4
 
+if [[ ! -z $3 ]]; then
+	thread_number=$3
+fi
+
 article_urls_file="../html/articles.txt"
-article_urls_finished_file="../html/article_finished.txt"
-article_urls_order_file="../html/article_ordered.txt"
-article_urls_temp_file="../html/article_temp.txt"
+article_urls_finished_file="../html/.article_finished.txt"
+article_urls_order_file="../html/.article_ordered.txt"
+article_urls_temp_file="../html/.article_temp.txt"
 parent="../data/"
 
 p=`pwd`
 p=${p##*\/}
-
 if [[ $p != scripts ]]; then
 	echo "change directory to scripts first"
 	exit
@@ -19,11 +22,10 @@ fi
 if [[ -f $article_urls_order_file ]]; then
 	rm $article_urls_order_file
 fi
-if [[ -f $article_urls_temp_file ]]; then
-	rm $article_urls_temp_file
-fi
 
-cat $article_urls_file >> $article_urls_temp_file
+sh uniq_articles.sh
+
+cat $article_urls_file > $article_urls_temp_file
 if [[ -f $article_urls_finished_file ]]; then
 	cat $article_urls_finished_file >> $article_urls_temp_file
 fi
@@ -37,12 +39,8 @@ temp_pipe=$$.fifo
 mkfifo $temp_pipe
 exec 9<>$temp_pipe
 rm -f $temp_pipe
-for (( i = 0; i < thread_number; i++ )); do
-	echo >&9
-done
+for (( i = 0; i < thread_number; i++ )); do echo >&9; done
 
-counter=0
-threshold=1
 ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36'
 h1='accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9'
 h2='Accept-Language: en-US'
@@ -54,11 +52,6 @@ index_end=$2
 IFS=$'\n'
 for article in `cat $article_urls_order_file`;
 do
-	#counter=$(( counter + 1 ))
-	#if (( counter > threshold )); then
-	#	echo "over threshold, auto end"
-	#	break
-	#fi
 	index=$(( index + 1 ))
 	if (( index < index_start || index_end != -1 && index > index_end )); then
 		continue
@@ -82,28 +75,19 @@ do
 		fi
         
 		img_urls_file="${dir}/img_urls.txt"
-		if [[ -f $img_urls_file ]]; then
-			c=`cat $img_urls_file`
-			if (( ${#c} == 0 )); then
-				rm $img_urls_file
-			else
-				#echo "$img_urls_file already exist"
-				echo >&9
-				exit
-			fi
+		if [[ -s $img_urls_file ]]; then
+			echo >&9
+			exit
 		fi
 
 		article_file="${dir}/article.html"
-		if [[ ! -f $article_file ]]; then
-			# echo "begin download:$article_url"
-			#set -x
-			curl -s -H "$h1" -H "$h2" -A "$ua" -x "$xx" $article_url -o $article_file --connect-time 10
+		if [[ ! -s $article_file ]]; then
+			curl -s -H "$h1" -H "$h2" -A "$ua" -x "$xx" $article_url -o $article_file --connect-timeout 10
 			ret=$?
-			#set +x
 			if [[ $ret != 0 ]]; then
 				echo "\033[31mRequest Error: ret=$ret, $article_url \033[0m"
-				if [[ -f $article_url ]]; then
-					rm "$article_url"
+				if [[ -f $article_file ]]; then
+					rm "$article_file"
 				fi
 				echo >&9
 				exit
@@ -118,7 +102,6 @@ do
 			article_cut=`cat $article_file`
 		    article_cut=${article_cut#*blog-details-text}
 		    article_cut=${article_cut%%blog-date*}
-		    #echo -n $article_cut | tr -d "\n" > $article_cut_file
 		    echo $article_cut > $article_cut_file
 		    sed -i '' -e "s/<img/\n<img/g" $article_cut_file
 		fi
@@ -130,7 +113,6 @@ do
 		IFS=$'\n'
 		for row in `cat $article_cut_file`; 
 		do
-			# echo ROW:$row
 			if [[ $row != '<img'* ]]; then
 				continue
 			fi
@@ -149,6 +131,8 @@ do
 done
 
 wait
+
+sh uniq_articles.sh
 
 exec 9>&-
 exec 9<&-

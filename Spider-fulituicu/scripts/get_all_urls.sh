@@ -3,9 +3,9 @@
 thread_number=20
 
 article_urls_file="../html/articles.txt"
-article_urls_finished_file="../html/article_finished.txt"
-article_urls_order_file="../html/article_ordered.txt"
-article_urls_temp_file="../html/article_temp.txt"
+article_urls_finished_file="../html/.article_finished.txt"
+article_urls_order_file="../html/.article_ordered.txt"
+article_urls_temp_file="../html/.article_temp.txt"
 parent="../data/"
 
 p=`pwd`
@@ -19,11 +19,8 @@ fi
 if [[ -f $article_urls_order_file ]]; then
 	rm $article_urls_order_file
 fi
-if [[ -f $article_urls_temp_file ]]; then
-	rm $article_urls_temp_file
-fi
 
-cat $article_urls_file >> $article_urls_temp_file
+cat $article_urls_file > $article_urls_temp_file
 cat $article_urls_finished_file >> $article_urls_temp_file
 sort -n $article_urls_temp_file | uniq -u > $article_urls_order_file
 rm $article_urls_temp_file
@@ -45,6 +42,7 @@ ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Ge
 h1='accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9'
 h2='Accept-Language: en-US'
 x='socks5://127.0.0.1:7890'
+
 for article in `cat $article_urls_order_file`;
 do
 	#counter=$(( counter + 1 ))
@@ -84,7 +82,7 @@ do
 		article_file="${dir}/article.html"
 		if [[ ! -f $article_file ]]; then
 			# echo "begin download:$article_url"
-			curl -s -H "$h1" -H "$h2" -A "$ua" -x "$x" $article_url -o $article_file --connect-time 10
+			curl -s -H "$h1" -H "$h2" -A "$ua" -x "$x" $article_url -o $article_file --connect-timeout 10
 			if [[ $? != 0 ]]; then
 				echo "timeout: $article_url"
 				if [[ -f $article_url ]]; then

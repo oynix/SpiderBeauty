@@ -2,6 +2,10 @@
 
 thread_number=24
 
+if [[ ! -z $3 ]]; then
+	thread_number=$3
+fi
+
 article_urls_file="../html/articles.txt"
 article_urls_finished_file="../html/.article_finished.txt"
 article_urls_order_file="../html/.article_ordered.txt"
@@ -10,21 +14,14 @@ parent="../data/"
 
 p=`pwd`
 p=${p##*\/}
-
 if [[ $p != scripts ]]; then
 	echo "change directory to scripts first"
 	exit
 fi
 
-#if [[ -f $article_urls_order_file ]]; then
-#	rm $article_urls_order_file
-#fi
-if [[ -f $article_urls_temp_file ]]; then
-	rm $article_urls_temp_file
-fi
 sh uniq_articles.sh
 
-cat $article_urls_file >> $article_urls_temp_file
+cat $article_urls_file > $article_urls_temp_file
 if [[ -f $article_urls_finished_file ]]; then
 	cat $article_urls_finished_file >> $article_urls_temp_file
 fi
@@ -38,9 +35,7 @@ temp_pipe=$$.fifo
 mkfifo $temp_pipe
 exec 9<>$temp_pipe
 rm -f $temp_pipe
-for (( i = 0; i < thread_number; i++ )); do
-	echo >&9
-done
+for (( i = 0; i < thread_number; i++ )); do echo >&9; done
 
 counter=0
 threshold=1
@@ -135,18 +130,6 @@ do
 			sed -n -e '/^$/d' $article_cut_file
 			rm $temp1
 			rm $temp2
-			#fs=`wc -c $article_file | awk '{print $1}'`
-			#if (( fs >= 500000 )); then
-			#	echo "\033[31mFile is too large: dir=$dir, url=$article_url\033[0m"
-			#	echo >&9
-			#	exit
-			#fi
-			#article_cut=`cat $article_file`
-			#article_cut=${article_cut%\"container\"*}
-		    #article_cut=${article_cut#*\"masonry\"}
-		    ##echo -n $article_cut | tr -d "\n" > $article_cut_file
-		    #echo $article_cut > $article_cut_file
-		    #sed -i '' -e 's/<div class="masonry-item/\n<div class="masonry-item/g' $article_cut_file
 		fi
 
 		fcts=`date "+%s"`
@@ -175,6 +158,8 @@ do
 done
 
 wait
+
+sh uniq_articles.sh
 
 exec 9>&-
 exec 9<&-
