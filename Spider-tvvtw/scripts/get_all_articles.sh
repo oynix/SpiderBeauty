@@ -62,10 +62,8 @@ do
 		html_cut_file="${html_dir}/page_${page_index}_cut.html"
 		if [[ ! -f $html_file ]]; then
 			sleep 1
-			set -x
 			curl -v -x "$xx" -A "$ua" -H "$h1" -H "$h2" $page_url -o "$html_file" --connect-timeout 10
 			ret=$?
-			set +x
 			if [[ $ret != 0 ]]; then
 				echo "\033[31mRequest Error: ret=$ret $html_file,$page_url \033[0m"
 				if [[ -f $html_file ]]; then
