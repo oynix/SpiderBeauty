@@ -101,6 +101,6 @@ $ sh get_all_urls.sh 1 -1 48
 
 - 根据 URL 下载图片 (从第1个下载到最后一个，使用48个进程)<br>
 ```shell
-sh get_all_imgs.sh 1 -1 48
+sh get_all_images.sh 1 -1 48
 ```
 
